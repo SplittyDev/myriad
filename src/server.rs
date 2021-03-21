@@ -19,12 +19,7 @@ mod server_query;
 use action_parser::ActionParser;
 
 use self::server_query::ServerQuery;
-
-#[derive(Debug)]
-pub struct User {
-    stream: TcpStream,
-    client_id: u64,
-}
+use crate::models::User;
 
 pub struct Server {
     config: ServerConfig,
@@ -132,8 +127,6 @@ impl Server {
     fn handle_command(&mut self, command: ServerEvent) {
         // Helpers
         #[allow(unused_variables)]
-        let find_user_by_client_id =
-            |client_id| self.users.iter().find(|user| user.client_id == client_id);
         let find_user_index_by_client_id = |client_id| {
             self.users
                 .iter()
@@ -142,7 +135,8 @@ impl Server {
 
         match command {
             ServerEvent::ClientConnected { stream, client_id } => {
-                let user = User { stream, client_id };
+                guard!(let Ok(peer_addr) = stream.peer_addr() else { return });
+                let user = User::new(stream, client_id, peer_addr.to_string());
                 self.users.push(user);
                 dbg!(&self.users);
             }
@@ -156,15 +150,27 @@ impl Server {
 
             ServerEvent::IrcCommand { client_id, message } => {
                 println!("[{} ->] {}", client_id, message);
-                guard!(let Some(user) = find_user_by_client_id(client_id) else { return });
-                let query = ServerQuery::new(&self, user);
+
+                // Get a mutable writer for the user's stream
+                let mut writer = {
+                    guard!(let Some(user) = self.users.iter().find(|user| user.client_id == client_id) else { return });
+                    let writer = user.stream
+                        .try_clone()
+                        .ok()
+                        .map(|stream| BufWriter::new(stream));
+                    guard!(let Some(mut writer) = writer else { return });
+                    writer
+                };
+                
+                // Initialize server query with mutable self and client id
+                let mut query = ServerQuery::new(self, client_id);
+
+                // Parse IRC message
                 let message = Message::from(message.trim_end());
-                guard!(let Some(action) = ActionParser::parse(message) else { return });
-                let writer = find_user_by_client_id(client_id)
-                    .and_then(|user| user.stream.try_clone().ok())
-                    .map(|stream| BufWriter::new(stream));
-                guard!(let Some(mut writer) = writer else { return });
-                action.dispatch(&query, &mut writer);
+                guard!(let Some(action) = ActionParser::parse(message, &mut query) else { return });
+
+                // Dispatch the action
+                action.dispatch(&mut query, &mut writer);
             }
         }
     }

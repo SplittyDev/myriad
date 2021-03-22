@@ -8,6 +8,10 @@ macro_rules! define_numerics {
 }
 
 define_numerics! {
+    // NICK
     "431" => ERR_NONICKNAMEGIVEN,
     "433" => ERR_NICKNAMEINUSE,
+    // USER
+    "461" => ERR_NEEDMOREPARAMS,
+    "462" => ERR_ALREADYREGISTRED,
 }

@@ -37,17 +37,19 @@ impl Action {
             }
 
             Action::SetNick { nickname } => {
-                println!("[Server] NICK [client={}, new_nick={}]", user_host, nickname);
+                println!("[Server] NICK [client={}, new_nick='{}']", user_host, nickname);
                 query.user_mut().nickname = Some(nickname.clone());
             }
 
             Action::ChangeNick { prev_nickname, nickname } => {
-                println!("[Server] NICK [client={}, from={}, to={}]", user_host, prev_nickname, nickname);
+                println!("[Server] NICK [client={}, from='{}', to='{}']", user_host, prev_nickname, nickname);
                 query.user_mut().nickname = Some(nickname.clone());
             }
 
             Action::SetUserAndRealName { username, realname } => {
-                unimplemented!()
+                println!("[Server] USER [client={}, username='{}', realname='{}']", user_host, username, realname);
+                query.user_mut().username = Some(username.clone());
+                query.user_mut().realname = Some(realname.clone());
             }
 
             Action::Error { code } => {

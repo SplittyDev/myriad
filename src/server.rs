@@ -149,7 +149,7 @@ impl Server {
             }
 
             ServerEvent::IrcCommand { client_id, message } => {
-                println!("[{} ->] {}", client_id, message);
+                println!("[{} ->] {}", client_id, message.trim_end());
 
                 // Get a mutable writer for the user's stream
                 let mut writer = {

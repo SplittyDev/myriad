@@ -10,6 +10,8 @@ impl ActionParser {
     pub fn parse(message: Message, query: &mut ServerQuery) -> Option<Action> {
         match message.command() {
             "PING" => Some(Action::Pong),
+
+            // NICK <nickname>
             "NICK" => {
 
                 // Validate params
@@ -38,6 +40,50 @@ impl ActionParser {
                     // Dispatch initial nick change
                     Some(Action::SetNick { nickname: nickname.to_string() })
                 }
+            }
+
+            // USER <username> 0 * <realname>
+            // USER <username> 0 * :<realname>
+            "USER" => {
+
+                // Validate params
+                guard!(let Some(params) = message.params() else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
+                });
+                let mut params_iter = params.iter();
+                guard!(let Some(username) = params_iter.next() else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
+                });
+                if let Some(param) = params_iter.next() {
+                    if param != "0" {
+                        println!("USER: Nonstandard param. Should be '0', was {}", param);
+                    }
+                } else { return Some(Action::Error { code: ERR_NEEDMOREPARAMS }) }
+                if let Some(param) = params_iter.next() {
+                    if param != "*" {
+                        println!("USER: Nonstandard param. Should be '*', was {}", param);
+                    }
+                } else { return Some(Action::Error { code: ERR_NEEDMOREPARAMS }) }
+                let realname = {
+                    if let Some(realname) = params_iter.next() {
+                        realname
+                    } else if let Some(realname) = params.trailing() {
+                        realname
+                    } else {
+                        return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
+                    }
+                };
+
+                // Check if user is already registered
+                if query.user().username.is_some() {
+                    return Some(Action::Error { code: ERR_ALREADYREGISTRED })
+                }
+
+                // Dispatch registration
+                Some(Action::SetUserAndRealName {
+                    username: format!("~{}", username),
+                    realname: realname.to_string()
+                })
             }
             command => {
                 println!("Unimplemented: {}", command);

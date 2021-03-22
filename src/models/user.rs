@@ -6,6 +6,8 @@ pub struct User {
     pub client_id: u64,
     pub host: String,
     pub nickname: Option<String>,
+    pub username: Option<String>,
+    pub realname: Option<String>,
 }
 
 impl User {
@@ -15,6 +17,8 @@ impl User {
             client_id,
             host,
             nickname: None,
+            username: None,
+            realname: None,
         }
     }
 }

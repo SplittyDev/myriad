@@ -1,8 +1,11 @@
 use std::{io::{BufWriter, Write}, net::TcpStream};
 use irc_rust::{Message, MessageBuilder};
-use guard::guard;
 
 use super::server_query::ServerQuery;
+use crate::numerics::*;
+
+const SOFTWARE_NAME: &'static str = env!("CARGO_PKG_NAME");
+const SOFTWARE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub enum Action {
     Error { code: &'static str },
@@ -10,6 +13,7 @@ pub enum Action {
     SetNick { nickname: String },
     ChangeNick { prev_nickname: String, nickname: String },
     SetUserAndRealName { username: String, realname: String },
+    SendWelcomeSequence,
 }
 
 impl Action {
@@ -50,6 +54,36 @@ impl Action {
                 println!("[Server] USER [client={}, username='{}', realname='{}']", user_host, username, realname);
                 query.user_mut().username = Some(username.clone());
                 query.user_mut().realname = Some(realname.clone());
+                Action::SendWelcomeSequence.dispatch(query, writer);
+            }
+
+            Action::SendWelcomeSequence => {
+                println!("[Server] #welcome[client={}]", user_host);
+                let rpl_welcome = MessageBuilder
+                    ::new(RPL_WELCOME)
+                    .trailing(&format!(
+                        "Welcome to {servername}, {nickname}",
+                        servername=query.server_name(),
+                        nickname=query.user().nickname.clone().unwrap(),
+                    ))
+                    .build();
+                let rpl_yourhost = MessageBuilder
+                    ::new(RPL_YOURHOST)
+                    .trailing(&format!(
+                        "Your host is Myriad, running version {software_version}",
+                        software_version=SOFTWARE_VERSION
+                    ))
+                    .build();
+                let rpl_created = MessageBuilder
+                    ::new(RPL_CREATED)
+                    .trailing(&format!(
+                        "This server was created {server_startup_time}",
+                        server_startup_time=query.server_startup_time()
+                    ))
+                    .build();
+                send(rpl_welcome);
+                send(rpl_yourhost);
+                send(rpl_created);
             }
 
             Action::Error { code } => {

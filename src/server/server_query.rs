@@ -17,11 +17,23 @@ impl<'a> ServerQuery<'a> {
         &self.server.config.host
     }
 
+    pub fn server_name(&self) -> &str {
+        &self.server.config.name
+    }
+
+    pub fn server_startup_time(&self) -> String {
+        self.server.startup_time.to_string()
+    }
+
     pub fn user(&self) -> &User {
         self.server.users
             .iter()
             .find(|user| user.client_id == self.client_id)
             .unwrap()
+    }
+
+    pub fn user_nick_unsafe(&self) -> String {
+        self.user().nickname.clone().unwrap()
     }
 
     pub fn user_mut(&mut self) -> &mut User {

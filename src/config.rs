@@ -5,6 +5,7 @@ pub struct ServerConfig {
     pub name: String,
     pub host: String,
     pub port: u16,
+    pub motd: String,
 }
 
 impl ServerConfig {
@@ -21,6 +22,7 @@ impl Default for ServerConfig {
             name: String::from("Myriad Devnet"),
             host: String::from("127.0.0.1"),
             port: 6667,
+            motd: String::from("Don't worry, it only seems kinky the first time."),
         }
     }
 }

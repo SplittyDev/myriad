@@ -1,3 +1,4 @@
 name = "Myriad Devnet"
 host = "127.0.0.1"
 port = 6667
+motd = "Don't worry, it only seems kinky the first time."

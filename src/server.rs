@@ -11,6 +11,7 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
+use chrono::prelude::*;
 
 mod action;
 mod action_parser;
@@ -24,6 +25,7 @@ use crate::models::User;
 pub struct Server {
     config: ServerConfig,
     users: Vec<User>,
+    startup_time: DateTime<Utc>,
 }
 
 #[derive(Debug)]
@@ -38,6 +40,7 @@ impl Server {
         Self {
             config,
             users: vec![],
+            startup_time: Utc::now(),
         }
     }
 

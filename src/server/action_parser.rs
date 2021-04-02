@@ -97,9 +97,20 @@ impl ActionParser {
             }
 
             "MOTD" => {
-                
+
                 // Dispatch MOTD reply
                 Some(Action::Motd)
+            }
+
+            "QUIT" => {
+                let reason = {
+                    if let Some(params) = message.params() {
+                        params.iter().next().or_else(|| params.trailing()).map(ToString::to_string)
+                    } else {
+                        None
+                    }
+                };
+                Some(Action::Quit { reason })
             }
 
             command => {

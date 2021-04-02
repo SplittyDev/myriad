@@ -15,6 +15,7 @@ pub enum Action {
     SetUserAndRealName { username: String, realname: String },
     SendWelcomeSequence,
     Motd,
+    Quit { reason: Option<String> },
 }
 
 impl Action {
@@ -137,6 +138,20 @@ impl Action {
                 send(motd_start);
                 send(motd);
                 send(motd_end);
+            }
+
+            Action::Quit { reason } => {
+
+                // Terminate client
+                if query.user_mut().stream.shutdown(std::net::Shutdown::Both).is_ok() {
+                    let nickname = query.user().nickname.clone().unwrap_or_default();
+                    println!(
+                        "[Server] Terminated connection of {nickname}@{host} (QUIT: {reason})",
+                        nickname = nickname,
+                        host = query.user_host(),
+                        reason = reason.as_ref().unwrap_or(&String::new())
+                    );
+                }
             }
 
             Action::Error { code } => {

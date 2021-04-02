@@ -9,7 +9,17 @@ pub struct ActionParser;
 impl ActionParser {
     pub fn parse(message: Message, query: &mut ServerQuery) -> Option<Action> {
         match message.command() {
-            "PING" => Some(Action::Pong),
+            "PING" => {
+
+                // Validate params
+                if let Some(params) = message.params() {
+                    if let Some(challenge) = params.iter().nth(0) {
+                        return Some(Action::Pong { challenge: Some(challenge.to_string()) })
+                    }
+                }
+
+                return Some(Action::Pong { challenge: None })
+            },
 
             // NICK <nickname>
             "NICK" => {

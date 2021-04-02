@@ -9,7 +9,7 @@ const SOFTWARE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub enum Action {
     Error { code: &'static str },
-    Pong,
+    Pong { challenge: Option<String> },
     SetNick { nickname: String },
     ChangeNick { prev_nickname: String, nickname: String },
     SetUserAndRealName { username: String, realname: String },
@@ -32,11 +32,13 @@ impl Action {
         match self {
 
             // Send PING response
-            Action::Pong => {
-                let message = MessageBuilder
-                    ::new("PONG")
-                    .param(server_host)
-                    .build();
+            Action::Pong { challenge } => {
+                let mut message = MessageBuilder
+                    ::new("PONG");
+                if let Some(challenge) = challenge {
+                    message = message.param(challenge);
+                }
+                let message = message.build();
                 send(message);
             }
 

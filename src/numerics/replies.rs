@@ -17,4 +17,8 @@ define_numerics! {
     // LUSERS
     "251" => RPL_LUSERCLIENT,
     "252" => RPL_LUSEROP,
+    // MOTD
+    "375" => RPL_MOTDSTART,
+    "372" => RPL_MOTD,
+    "376" => RPL_ENDOFMOTD,
 }

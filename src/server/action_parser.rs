@@ -95,6 +95,13 @@ impl ActionParser {
                     realname: realname.to_string()
                 })
             }
+
+            "MOTD" => {
+                
+                // Dispatch MOTD reply
+                Some(Action::Motd)
+            }
+
             command => {
                 println!("Unimplemented: {}", command);
                 None

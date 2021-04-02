@@ -14,6 +14,7 @@ pub enum Action {
     ChangeNick { prev_nickname: String, nickname: String },
     SetUserAndRealName { username: String, realname: String },
     SendWelcomeSequence,
+    Motd,
 }
 
 impl Action {
@@ -113,6 +114,29 @@ impl Action {
                 // send(rpl_myinfo);
                 send(rpl_isupport);
                 send(rpl_lusers);
+                Action::Motd.dispatch(query, writer);
+            }
+
+            Action::Motd => {
+                let nickname = query.user().nickname.clone().unwrap();
+                let motd_start = MessageBuilder
+                    ::new(RPL_MOTDSTART)
+                    .param(&nickname)
+                    .trailing(&format!("- {} Message of the day - ", query.server_name()))
+                    .build();
+                let motd = MessageBuilder
+                    ::new(RPL_MOTD)
+                    .param(&nickname)
+                    .trailing(&query.server_config().motd)
+                    .build();
+                let motd_end = MessageBuilder
+                    ::new(RPL_ENDOFMOTD)
+                    .param(&nickname)
+                    .trailing("End of /MOTD command.")
+                    .build();
+                send(motd_start);
+                send(motd);
+                send(motd_end);
             }
 
             Action::Error { code } => {

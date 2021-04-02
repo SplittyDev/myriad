@@ -14,4 +14,7 @@ define_numerics! {
     "003" => RPL_CREATED,
     "004" => RPL_MYINFO,
     "005" => RPL_ISUPPORT,
+    // LUSERS
+    "251" => RPL_LUSERCLIENT,
+    "252" => RPL_LUSEROP,
 }

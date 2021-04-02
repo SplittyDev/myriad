@@ -38,6 +38,10 @@ impl<'a> ServerQuery<'a> {
             .unwrap()
     }
 
+    pub fn user_count(&self) -> usize {
+        self.server.users.len()
+    }
+
     pub fn user_nick_unsafe(&self) -> String {
         self.user().nickname.clone().unwrap()
     }

@@ -61,8 +61,10 @@ impl Action {
 
             Action::SendWelcomeSequence => {
                 println!("[Server] #welcome[client={}]", user_host);
+                let nickname = query.user().nickname.clone().unwrap();
                 let rpl_welcome = MessageBuilder
                     ::new(RPL_WELCOME)
+                    .param(&nickname)
                     .trailing(&format!(
                         "Welcome to {servername}, {nickname}",
                         servername=query.server_name(),
@@ -71,6 +73,7 @@ impl Action {
                     .build();
                 let rpl_yourhost = MessageBuilder
                     ::new(RPL_YOURHOST)
+                    .param(&nickname)
                     .trailing(&format!(
                         "Your host is Myriad, running version {software_version}",
                         software_version=SOFTWARE_VERSION
@@ -78,6 +81,7 @@ impl Action {
                     .build();
                 let rpl_created = MessageBuilder
                     ::new(RPL_CREATED)
+                    .param(&nickname)
                     .trailing(&format!(
                         "This server was created {server_startup_time}",
                         server_startup_time=query.server_startup_time()
@@ -85,18 +89,30 @@ impl Action {
                     .build();
                 let rpl_myinfo = MessageBuilder
                     ::new(RPL_MYINFO)
+                    .param(&nickname)
                     .build();
                 let rpl_isupport = MessageBuilder
                     ::new(RPL_ISUPPORT)
+                    .param(&nickname)
                     .param(&format!("AWAYLEN={}", query.server_config().feat_awaylen))
                     .param(&format!("CASEMAPPING={}", query.server_config().feat_casemap.to_string()))
                     .trailing("are supported by this server")
+                    .build();
+                let rpl_lusers = MessageBuilder
+                    ::new(RPL_LUSERCLIENT)
+                    .param(&nickname)
+                    .trailing(&format!(
+                        "There are {user_count} users and {invisible_count} invisible on 1 server",
+                        user_count = query.user_count(),
+                        invisible_count = 0
+                    ))
                     .build();
                 send(rpl_welcome);
                 send(rpl_yourhost);
                 send(rpl_created);
                 // send(rpl_myinfo);
                 send(rpl_isupport);
+                send(rpl_lusers);
             }
 
             Action::Error { code } => {

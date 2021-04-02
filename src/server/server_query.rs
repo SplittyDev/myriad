@@ -1,3 +1,5 @@
+use crate::config::ServerConfig;
+
 use super::{Server, User};
 
 pub struct ServerQuery<'a> {
@@ -23,6 +25,10 @@ impl<'a> ServerQuery<'a> {
 
     pub fn server_startup_time(&self) -> String {
         self.server.startup_time.to_string()
+    }
+
+    pub fn server_config(&self) -> &ServerConfig {
+        &self.server.config
     }
 
     pub fn user(&self) -> &User {

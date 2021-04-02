@@ -13,4 +13,5 @@ define_numerics! {
     "002" => RPL_YOURHOST,
     "003" => RPL_CREATED,
     "004" => RPL_MYINFO,
+    "005" => RPL_ISUPPORT,
 }

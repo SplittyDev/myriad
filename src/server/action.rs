@@ -83,9 +83,20 @@ impl Action {
                         server_startup_time=query.server_startup_time()
                     ))
                     .build();
+                let rpl_myinfo = MessageBuilder
+                    ::new(RPL_MYINFO)
+                    .build();
+                let rpl_isupport = MessageBuilder
+                    ::new(RPL_ISUPPORT)
+                    .param(&format!("AWAYLEN={}", query.server_config().feat_awaylen))
+                    .param(&format!("CASEMAPPING={}", query.server_config().feat_casemap.to_string()))
+                    .trailing("are supported by this server")
+                    .build();
                 send(rpl_welcome);
                 send(rpl_yourhost);
                 send(rpl_created);
+                // send(rpl_myinfo);
+                send(rpl_isupport);
             }
 
             Action::Error { code } => {

@@ -1,5 +1,6 @@
 use crate::config::ServerConfig;
 use anyhow::{anyhow, Result};
+use chrono::prelude::*;
 use guard::guard;
 use irc_rust::Message;
 use std::{
@@ -11,7 +12,6 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-use chrono::prelude::*;
 
 mod action;
 mod action_parser;
@@ -20,11 +20,12 @@ mod server_query;
 use action_parser::ActionParser;
 
 use self::server_query::ServerQuery;
-use crate::models::User;
+use crate::models::{Channel, User};
 
 pub struct Server {
     config: ServerConfig,
     users: Vec<User>,
+    channels: Vec<Channel>,
     startup_time: DateTime<Utc>,
 }
 
@@ -40,6 +41,7 @@ impl Server {
         Self {
             config,
             users: vec![],
+            channels: vec![],
             startup_time: Utc::now(),
         }
     }
@@ -157,14 +159,15 @@ impl Server {
                 // Get a mutable writer for the user's stream
                 let mut writer = {
                     guard!(let Some(user) = self.users.iter().find(|user| user.client_id == client_id) else { return });
-                    let writer = user.stream
+                    let writer = user
+                        .stream
                         .try_clone()
                         .ok()
                         .map(|stream| BufWriter::new(stream));
                     guard!(let Some(mut writer) = writer else { return });
                     writer
                 };
-                
+
                 // Initialize server query with mutable self and client id
                 let mut query = ServerQuery::new(self, client_id);
 

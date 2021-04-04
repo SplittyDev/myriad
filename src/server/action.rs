@@ -1,8 +1,10 @@
 use std::{io::{BufWriter, Write}, net::TcpStream};
 use irc_rust::{Message, MessageBuilder};
+use guard::guard;
+use itertools::Itertools;
 
 use super::server_query::ServerQuery;
-use crate::numerics::*;
+use crate::{models::{ChannelRef, User}, numerics::*};
 
 const SOFTWARE_NAME: &'static str = env!("CARGO_PKG_NAME");
 const SOFTWARE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -16,9 +18,41 @@ pub enum Action {
     SendWelcomeSequence,
     Motd,
     Quit { reason: Option<String> },
+    Join { channels: Vec<ChannelRef> },
+    JoinInform { channel: String },
 }
 
 impl Action {
+    pub fn dispatch_multi_by_user_ref(&self, root_query: &mut ServerQuery, users: &[&User]) {
+        for user in users {
+            let mut query = ServerQuery::new(root_query.server_mut(), user.client_id);
+            let mut writer = {
+                let writer = user.stream
+                    .try_clone()
+                    .ok()
+                    .map(|stream| BufWriter::new(stream));
+                guard!(let Some(mut writer) = writer else { return });
+                writer
+            };
+            self.dispatch(&mut query, &mut writer);
+        }
+    }
+
+    pub fn dispatch_multi_by_client_id(&self, root_query: &mut ServerQuery, clients: &[u64]) {
+        for client in clients {
+            let mut query = ServerQuery::new(root_query.server_mut(), *client);
+            let mut writer = {
+                let writer = query.user().stream
+                    .try_clone()
+                    .ok()
+                    .map(|stream| BufWriter::new(stream));
+                guard!(let Some(mut writer) = writer else { return });
+                writer
+            };
+            self.dispatch(&mut query, &mut writer);
+        }
+    }
+
     pub fn dispatch(&self, query: &mut ServerQuery, writer: &mut BufWriter<TcpStream>) {
         let mut send = |message: Message| {
             println!("[Dispatch] {}", message);
@@ -30,6 +64,7 @@ impl Action {
 
         let server_host = query.server_host();
         let user_host = query.user_host();
+        let client_id = query.user().client_id;
 
         match self {
 
@@ -89,7 +124,8 @@ impl Action {
                         server_startup_time=query.server_startup_time()
                     ))
                     .build();
-                let rpl_myinfo = MessageBuilder
+                // TODO: RPL_MYINFO
+                let _rpl_myinfo = MessageBuilder
                     ::new(RPL_MYINFO)
                     .param(&nickname)
                     .build();
@@ -140,27 +176,89 @@ impl Action {
                 send(motd_end);
             }
 
+            Action::Join { channels } => {
+                let nickname = query.user().nickname.clone().unwrap();
+
+                for channel_ref in channels {
+
+                    // Create channel if it doesn't exist
+                    let channel = query.channel_get_or_create(&channel_ref.name);
+
+                    // Join client into channel
+                    channel.join_user(client_id);
+
+                    // Send topic
+                    if !channel.topic().is_empty() {
+                        let rpl_topic = MessageBuilder
+                            ::new(RPL_TOPIC)
+                            .param(&nickname)
+                            .param(&channel_ref.name)
+                            .trailing(channel.topic())
+                            .build();
+                        send(rpl_topic);
+                    }
+
+                    // Inform other users of join
+                    let channel_users = query
+                        .channel_users(&channel_ref.name)
+                        .map(|users| {
+                            users.iter()
+                                .map(|user| user.client_id)
+                                .collect_vec()
+                        });
+                    if let Some(users) = channel_users {
+                        Action::JoinInform { channel: channel_ref.name.clone() }
+                            .dispatch_multi_by_client_id(query, &users[..]);
+                    }
+                }
+            }
+
+            Action::JoinInform { channel } => {
+                let nickname = query.user().nickname.clone().unwrap();
+                let join_command = MessageBuilder
+                    ::new("JOIN")
+                    .prefix(&nickname, None, None)
+                    .param(channel)
+                    .build();
+                send(join_command);
+            }
+
             Action::Quit { reason } => {
+                let user = query.user();
+                let nickname = user.nickname.clone().unwrap_or_default();
 
                 // Terminate client
-                if query.user_mut().stream.shutdown(std::net::Shutdown::Both).is_ok() {
-                    let nickname = query.user().nickname.clone().unwrap_or_default();
+                if user.stream.shutdown(std::net::Shutdown::Both).is_ok() {
                     println!(
                         "[Server] Terminated connection of {nickname}@{host} (QUIT: {reason})",
                         nickname = nickname,
-                        host = query.user_host(),
+                        host = user_host,
                         reason = reason.as_ref().unwrap_or(&String::new())
                     );
+                }
+
+                // Remove client from user list
+                let server_mut = query.server_mut();
+                let result = server_mut.users.iter()
+                    .position(|user| user.client_id == user.client_id)
+                    .map(|index| server_mut.users.swap_remove(index));
+                if result.is_some() {
+                    println!(
+                        "[Server] Removed {nickname}@{host} from client list",
+                        nickname = nickname,
+                        host = user_host
+                    )
                 }
             }
 
             Action::Error { code } => {
                 let message = MessageBuilder
                     ::new(code)
-                    .prefix(server_host, None, Some(user_host))
+                    .prefix(server_host, None, Some(&user_host))
                     .build();
                 send(message);
             }
+            Action::JoinInform { channel } => {}
         }
     }
 }

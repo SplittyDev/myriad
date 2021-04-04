@@ -13,6 +13,14 @@ Myriad is __not__ ready for production use. Many basic features are missing and 
 
 ## Changelog
 
+### master
+```
+Implemented: JOIN
+
+Bugfixes:
+- Remove client from client list on QUIT
+```
+
 ### 0.1.0 &mdash; Dev Release
 ```
 Implemented: PING, NICK, USER, MOTD, QUIT

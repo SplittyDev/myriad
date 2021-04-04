@@ -1,6 +1,8 @@
 use irc_rust::Message;
 use guard::guard;
+use itertools::Itertools;
 use crate::numerics::*;
+use crate::models::ChannelRef;
 
 use super::{action::Action, server_query::ServerQuery};
 
@@ -100,6 +102,24 @@ impl ActionParser {
 
                 // Dispatch MOTD reply
                 Some(Action::Motd)
+            }
+
+            "JOIN" => {
+
+                guard!(let Some(params) = message.params() else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
+                });
+
+                let mut params_iter = params.iter();
+                let channels = params_iter.next().unwrap().split(",");
+                let channel_keys = params_iter.next().map(|keys| keys.split(",").collect_vec());
+
+                let channel_refs = channels
+                    .zip_longest(channel_keys.unwrap_or_default())
+                    .map(ChannelRef::from)
+                    .collect_vec();
+
+                Some(Action::Join { channels: channel_refs })
             }
 
             "QUIT" => {

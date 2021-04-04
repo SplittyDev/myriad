@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 use itertools::Itertools;
 
 use crate::{config::ServerConfig, models::Channel};
@@ -13,10 +11,7 @@ pub struct ServerQuery<'a> {
 
 impl<'a> ServerQuery<'a> {
     pub fn new(server: &'a mut Server, client_id: u64) -> Self {
-        Self {
-            server,
-            client_id,
-        }
+        Self { server, client_id }
     }
 
     //
@@ -52,14 +47,18 @@ impl<'a> ServerQuery<'a> {
     //
 
     pub fn user(&self) -> &User {
-        self.server.users
+        self.server
+            .users
             .iter()
             .find(|user| user.client_id == self.client_id)
             .unwrap()
     }
 
     pub fn user_find_by_client_id(&self, client_id: u64) -> Option<&User> {
-        self.server.users.iter().find(|user| user.client_id == client_id)
+        self.server
+            .users
+            .iter()
+            .find(|user| user.client_id == client_id)
     }
 
     pub fn user_count(&self) -> usize {
@@ -72,7 +71,8 @@ impl<'a> ServerQuery<'a> {
 
     pub fn user_mut(&mut self) -> &mut User {
         let client_id = self.client_id;
-        self.server.users
+        self.server
+            .users
             .iter_mut()
             .find(|user| user.client_id == client_id)
             .unwrap()
@@ -92,28 +92,46 @@ impl<'a> ServerQuery<'a> {
     }
 
     pub fn channel_find(&self, name: &str) -> Option<&Channel> {
-        self.server.channels.iter().find(|channel| channel.name() == name)
+        self.server
+            .channels
+            .iter()
+            .find(|channel| channel.name() == name)
     }
 
     pub fn channel_exists(&self, name: &str) -> bool {
-        self.server.channels.iter().find(|channel| channel.name() == name).is_some()
+        self.server
+            .channels
+            .iter()
+            .find(|channel| channel.name() == name)
+            .is_some()
     }
 
     pub fn channel_get_or_create(&mut self, name: &str) -> &mut Channel {
         let server_mut = self.server_mut();
-        if server_mut.channels.iter().find(|channel| channel.name() == name).is_none() {
+        if server_mut
+            .channels
+            .iter()
+            .find(|channel| channel.name() == name)
+            .is_none()
+        {
             server_mut.channels.push(Channel::new(name.to_string()));
             return server_mut.channels.last_mut().unwrap();
         } else {
-            return server_mut.channels.iter_mut().find(|channel| channel.name() == name).unwrap();
+            return server_mut
+                .channels
+                .iter_mut()
+                .find(|channel| channel.name() == name)
+                .unwrap();
         }
     }
 
     pub fn channel_users(&self, name: &str) -> Option<Vec<&User>> {
         self.channel_find(name).map(|channel| {
-            channel.clients().iter().flat_map(|client_id| {
-                self.user_find_by_client_id(*client_id)
-            }).collect_vec()
+            channel
+                .clients()
+                .iter()
+                .flat_map(|client_id| self.user_find_by_client_id(*client_id))
+                .collect_vec()
         })
     }
 }

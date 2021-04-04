@@ -1,8 +1,8 @@
-use irc_rust::Message;
-use guard::guard;
-use itertools::Itertools;
-use crate::numerics::*;
 use crate::models::ChannelRef;
+use crate::numerics::*;
+use guard::guard;
+use irc_rust::Message;
+use itertools::Itertools;
 
 use super::{action::Action, server_query::ServerQuery};
 
@@ -12,20 +12,20 @@ impl ActionParser {
     pub fn parse(message: Message, query: &mut ServerQuery) -> Option<Action> {
         match message.command() {
             "PING" => {
-
                 // Validate params
                 if let Some(params) = message.params() {
                     if let Some(challenge) = params.iter().nth(0) {
-                        return Some(Action::Pong { challenge: Some(challenge.to_string()) })
+                        return Some(Action::Pong {
+                            challenge: Some(challenge.to_string()),
+                        });
                     }
                 }
 
-                return Some(Action::Pong { challenge: None })
-            },
+                return Some(Action::Pong { challenge: None });
+            }
 
             // NICK <nickname>
             "NICK" => {
-
                 // Validate params
                 guard!(let Some(params) = message.params() else {
                     return Some(Action::Error { code: ERR_NONICKNAMEGIVEN })
@@ -36,28 +36,29 @@ impl ActionParser {
 
                 // Check if user already has a nickname
                 if let Some(old_nickname) = &query.user().nickname {
-
                     // Check if nickname collides with current one
                     if old_nickname == nickname {
-                        return Some(Action::Error { code: ERR_NICKNAMEINUSE })
+                        return Some(Action::Error {
+                            code: ERR_NICKNAMEINUSE,
+                        });
                     }
 
                     // Dispatch nick change
                     Some(Action::ChangeNick {
                         prev_nickname: old_nickname.clone(),
-                        nickname: nickname.to_string()
+                        nickname: nickname.to_string(),
                     })
                 } else {
-
                     // Dispatch initial nick change
-                    Some(Action::SetNick { nickname: nickname.to_string() })
+                    Some(Action::SetNick {
+                        nickname: nickname.to_string(),
+                    })
                 }
             }
 
             // USER <username> 0 * <realname>
             // USER <username> 0 * :<realname>
             "USER" => {
-
                 // Validate params
                 guard!(let Some(params) = message.params() else {
                     return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
@@ -70,42 +71,52 @@ impl ActionParser {
                     if param != "0" {
                         println!("USER: Nonstandard param. Should be '0', was {}", param);
                     }
-                } else { return Some(Action::Error { code: ERR_NEEDMOREPARAMS }) }
+                } else {
+                    return Some(Action::Error {
+                        code: ERR_NEEDMOREPARAMS,
+                    });
+                }
                 if let Some(param) = params_iter.next() {
                     if param != "*" {
                         println!("USER: Nonstandard param. Should be '*', was {}", param);
                     }
-                } else { return Some(Action::Error { code: ERR_NEEDMOREPARAMS }) }
+                } else {
+                    return Some(Action::Error {
+                        code: ERR_NEEDMOREPARAMS,
+                    });
+                }
                 let realname = {
                     if let Some(realname) = params_iter.next() {
                         realname
                     } else if let Some(realname) = params.trailing() {
                         realname
                     } else {
-                        return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
+                        return Some(Action::Error {
+                            code: ERR_NEEDMOREPARAMS,
+                        });
                     }
                 };
 
                 // Check if user is already registered
                 if query.user().username.is_some() {
-                    return Some(Action::Error { code: ERR_ALREADYREGISTRED })
+                    return Some(Action::Error {
+                        code: ERR_ALREADYREGISTRED,
+                    });
                 }
 
                 // Dispatch registration
                 Some(Action::SetUserAndRealName {
                     username: format!("~{}", username),
-                    realname: realname.to_string()
+                    realname: realname.to_string(),
                 })
             }
 
             "MOTD" => {
-
                 // Dispatch MOTD reply
                 Some(Action::Motd)
             }
 
             "JOIN" => {
-
                 guard!(let Some(params) = message.params() else {
                     return Some(Action::Error { code: ERR_NEEDMOREPARAMS })
                 });
@@ -119,13 +130,19 @@ impl ActionParser {
                     .map(ChannelRef::from)
                     .collect_vec();
 
-                Some(Action::Join { channels: channel_refs })
+                Some(Action::Join {
+                    channels: channel_refs,
+                })
             }
 
             "QUIT" => {
                 let reason = {
                     if let Some(params) = message.params() {
-                        params.iter().next().or_else(|| params.trailing()).map(ToString::to_string)
+                        params
+                            .iter()
+                            .next()
+                            .or_else(|| params.trailing())
+                            .map(ToString::to_string)
                     } else {
                         None
                     }

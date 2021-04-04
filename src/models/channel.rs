@@ -50,9 +50,15 @@ pub struct ChannelRef {
 impl From<EitherOrBoth<&str, &str>> for ChannelRef {
     fn from(either: EitherOrBoth<&str, &str>) -> Self {
         match either {
-            EitherOrBoth::Both(channel, key) => Self { name: channel.to_string(), key: Some(key.to_string()) },
-            EitherOrBoth::Left(channel) => Self { name: channel.to_string(), key: None },
-            EitherOrBoth::Right(key) => panic!("Unable to construct `ChannelRef` from key only.")
+            EitherOrBoth::Both(channel, key) => Self {
+                name: channel.to_string(),
+                key: Some(key.to_string()),
+            },
+            EitherOrBoth::Left(channel) => Self {
+                name: channel.to_string(),
+                key: None,
+            },
+            EitherOrBoth::Right(_) => panic!("Unable to construct `ChannelRef` from key only."),
         }
     }
 }

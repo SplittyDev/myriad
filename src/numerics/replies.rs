@@ -23,5 +23,5 @@ define_numerics! {
     // MOTD
     "375" => RPL_MOTDSTART,
     "372" => RPL_MOTD,
-    "376" => RPL_ENDOFMOTD, 
+    "376" => RPL_ENDOFMOTD,
 }

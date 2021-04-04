@@ -1,5 +1,5 @@
-mod replies;
 mod errors;
+mod replies;
 
-pub use replies::*;
 pub use errors::*;
+pub use replies::*;

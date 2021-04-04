@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io::{Read, Write};
 
 mod config;
-mod server;
 mod models;
 mod numerics;
+mod server;
 
 use config::ServerConfig;
 use server::Server;
@@ -24,14 +24,12 @@ fn read_or_create_config() -> Result<ServerConfig> {
 }
 
 fn create_config() -> Result<ServerConfig> {
-
     // Create default configuration
     let config = ServerConfig::default();
 
     // Serialize config to string
     match toml::to_string(&config) {
         Ok(config_text) => {
-    
             // Write to file
             let mut file = File::create("config.toml")?;
             file.write_all(config_text.as_ref())?;
@@ -44,7 +42,6 @@ fn create_config() -> Result<ServerConfig> {
 }
 
 fn read_config() -> Result<ServerConfig> {
-
     // Open config file
     let mut config_file = File::open("config.toml")?;
 

@@ -1,5 +1,5 @@
-mod user;
 mod channel;
+mod user;
 
-pub use user::User;
 pub use channel::{Channel, ChannelMode, ChannelRef};
+pub use user::User;

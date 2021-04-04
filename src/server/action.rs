@@ -1,25 +1,48 @@
-use std::{io::{BufWriter, Write}, net::TcpStream};
-use irc_rust::{Message, MessageBuilder};
 use guard::guard;
+use irc_rust::{Message, MessageBuilder};
 use itertools::Itertools;
+use std::{
+    io::{BufWriter, Write},
+    net::TcpStream,
+};
 
 use super::server_query::ServerQuery;
-use crate::{models::{ChannelRef, User}, numerics::*};
+use crate::{
+    models::{ChannelRef, User},
+    numerics::*,
+};
 
-const SOFTWARE_NAME: &'static str = env!("CARGO_PKG_NAME");
 const SOFTWARE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub enum Action {
-    Error { code: &'static str },
-    Pong { challenge: Option<String> },
-    SetNick { nickname: String },
-    ChangeNick { prev_nickname: String, nickname: String },
-    SetUserAndRealName { username: String, realname: String },
+    Error {
+        code: &'static str,
+    },
+    Pong {
+        challenge: Option<String>,
+    },
+    SetNick {
+        nickname: String,
+    },
+    ChangeNick {
+        prev_nickname: String,
+        nickname: String,
+    },
+    SetUserAndRealName {
+        username: String,
+        realname: String,
+    },
     SendWelcomeSequence,
     Motd,
-    Quit { reason: Option<String> },
-    Join { channels: Vec<ChannelRef> },
-    JoinInform { channel: String },
+    Quit {
+        reason: Option<String>,
+    },
+    Join {
+        channels: Vec<ChannelRef>,
+    },
+    JoinInform {
+        channel: String,
+    },
 }
 
 impl Action {
@@ -27,7 +50,8 @@ impl Action {
         for user in users {
             let mut query = ServerQuery::new(root_query.server_mut(), user.client_id);
             let mut writer = {
-                let writer = user.stream
+                let writer = user
+                    .stream
                     .try_clone()
                     .ok()
                     .map(|stream| BufWriter::new(stream));
@@ -42,7 +66,9 @@ impl Action {
         for client in clients {
             let mut query = ServerQuery::new(root_query.server_mut(), *client);
             let mut writer = {
-                let writer = query.user().stream
+                let writer = query
+                    .user()
+                    .stream
                     .try_clone()
                     .ok()
                     .map(|stream| BufWriter::new(stream));
@@ -67,11 +93,9 @@ impl Action {
         let client_id = query.user().client_id;
 
         match self {
-
             // Send PING response
             Action::Pong { challenge } => {
-                let mut message = MessageBuilder
-                    ::new("PONG");
+                let mut message = MessageBuilder::new("PONG");
                 if let Some(challenge) = challenge {
                     message = message.param(challenge);
                 }
@@ -80,17 +104,29 @@ impl Action {
             }
 
             Action::SetNick { nickname } => {
-                println!("[Server] NICK [client={}, new_nick='{}']", user_host, nickname);
+                println!(
+                    "[Server] NICK [client={}, new_nick='{}']",
+                    user_host, nickname
+                );
                 query.user_mut().nickname = Some(nickname.clone());
             }
 
-            Action::ChangeNick { prev_nickname, nickname } => {
-                println!("[Server] NICK [client={}, from='{}', to='{}']", user_host, prev_nickname, nickname);
+            Action::ChangeNick {
+                prev_nickname,
+                nickname,
+            } => {
+                println!(
+                    "[Server] NICK [client={}, from='{}', to='{}']",
+                    user_host, prev_nickname, nickname
+                );
                 query.user_mut().nickname = Some(nickname.clone());
             }
 
             Action::SetUserAndRealName { username, realname } => {
-                println!("[Server] USER [client={}, username='{}', realname='{}']", user_host, username, realname);
+                println!(
+                    "[Server] USER [client={}, username='{}', realname='{}']",
+                    user_host, username, realname
+                );
                 query.user_mut().username = Some(username.clone());
                 query.user_mut().realname = Some(realname.clone());
                 Action::SendWelcomeSequence.dispatch(query, writer);
@@ -99,45 +135,40 @@ impl Action {
             Action::SendWelcomeSequence => {
                 println!("[Server] #welcome[client={}]", user_host);
                 let nickname = query.user().nickname.clone().unwrap();
-                let rpl_welcome = MessageBuilder
-                    ::new(RPL_WELCOME)
+                let rpl_welcome = MessageBuilder::new(RPL_WELCOME)
                     .param(&nickname)
                     .trailing(&format!(
                         "Welcome to {servername}, {nickname}",
-                        servername=query.server_name(),
-                        nickname=query.user().nickname.clone().unwrap(),
+                        servername = query.server_name(),
+                        nickname = query.user().nickname.clone().unwrap(),
                     ))
                     .build();
-                let rpl_yourhost = MessageBuilder
-                    ::new(RPL_YOURHOST)
+                let rpl_yourhost = MessageBuilder::new(RPL_YOURHOST)
                     .param(&nickname)
                     .trailing(&format!(
                         "Your host is Myriad, running version {software_version}",
-                        software_version=SOFTWARE_VERSION
+                        software_version = SOFTWARE_VERSION
                     ))
                     .build();
-                let rpl_created = MessageBuilder
-                    ::new(RPL_CREATED)
+                let rpl_created = MessageBuilder::new(RPL_CREATED)
                     .param(&nickname)
                     .trailing(&format!(
                         "This server was created {server_startup_time}",
-                        server_startup_time=query.server_startup_time()
+                        server_startup_time = query.server_startup_time()
                     ))
                     .build();
                 // TODO: RPL_MYINFO
-                let _rpl_myinfo = MessageBuilder
-                    ::new(RPL_MYINFO)
-                    .param(&nickname)
-                    .build();
-                let rpl_isupport = MessageBuilder
-                    ::new(RPL_ISUPPORT)
+                let _rpl_myinfo = MessageBuilder::new(RPL_MYINFO).param(&nickname).build();
+                let rpl_isupport = MessageBuilder::new(RPL_ISUPPORT)
                     .param(&nickname)
                     .param(&format!("AWAYLEN={}", query.server_config().feat_awaylen))
-                    .param(&format!("CASEMAPPING={}", query.server_config().feat_casemap.to_string()))
+                    .param(&format!(
+                        "CASEMAPPING={}",
+                        query.server_config().feat_casemap.to_string()
+                    ))
                     .trailing("are supported by this server")
                     .build();
-                let rpl_lusers = MessageBuilder
-                    ::new(RPL_LUSERCLIENT)
+                let rpl_lusers = MessageBuilder::new(RPL_LUSERCLIENT)
                     .param(&nickname)
                     .trailing(&format!(
                         "There are {user_count} users and {invisible_count} invisible on 1 server",
@@ -156,18 +187,15 @@ impl Action {
 
             Action::Motd => {
                 let nickname = query.user().nickname.clone().unwrap();
-                let motd_start = MessageBuilder
-                    ::new(RPL_MOTDSTART)
+                let motd_start = MessageBuilder::new(RPL_MOTDSTART)
                     .param(&nickname)
                     .trailing(&format!("- {} Message of the day - ", query.server_name()))
                     .build();
-                let motd = MessageBuilder
-                    ::new(RPL_MOTD)
+                let motd = MessageBuilder::new(RPL_MOTD)
                     .param(&nickname)
                     .trailing(&query.server_config().motd)
                     .build();
-                let motd_end = MessageBuilder
-                    ::new(RPL_ENDOFMOTD)
+                let motd_end = MessageBuilder::new(RPL_ENDOFMOTD)
                     .param(&nickname)
                     .trailing("End of /MOTD command.")
                     .build();
@@ -180,7 +208,6 @@ impl Action {
                 let nickname = query.user().nickname.clone().unwrap();
 
                 for channel_ref in channels {
-
                     // Create channel if it doesn't exist
                     let channel = query.channel_get_or_create(&channel_ref.name);
 
@@ -189,8 +216,7 @@ impl Action {
 
                     // Send topic
                     if !channel.topic().is_empty() {
-                        let rpl_topic = MessageBuilder
-                            ::new(RPL_TOPIC)
+                        let rpl_topic = MessageBuilder::new(RPL_TOPIC)
                             .param(&nickname)
                             .param(&channel_ref.name)
                             .trailing(channel.topic())
@@ -201,22 +227,19 @@ impl Action {
                     // Inform other users of join
                     let channel_users = query
                         .channel_users(&channel_ref.name)
-                        .map(|users| {
-                            users.iter()
-                                .map(|user| user.client_id)
-                                .collect_vec()
-                        });
+                        .map(|users| users.iter().map(|user| user.client_id).collect_vec());
                     if let Some(users) = channel_users {
-                        Action::JoinInform { channel: channel_ref.name.clone() }
-                            .dispatch_multi_by_client_id(query, &users[..]);
+                        Action::JoinInform {
+                            channel: channel_ref.name.clone(),
+                        }
+                        .dispatch_multi_by_client_id(query, &users[..]);
                     }
                 }
             }
 
             Action::JoinInform { channel } => {
                 let nickname = query.user().nickname.clone().unwrap();
-                let join_command = MessageBuilder
-                    ::new("JOIN")
+                let join_command = MessageBuilder::new("JOIN")
                     .prefix(&nickname, None, None)
                     .param(channel)
                     .build();
@@ -239,7 +262,9 @@ impl Action {
 
                 // Remove client from user list
                 let server_mut = query.server_mut();
-                let result = server_mut.users.iter()
+                let result = server_mut
+                    .users
+                    .iter()
                     .position(|user| user.client_id == user.client_id)
                     .map(|index| server_mut.users.swap_remove(index));
                 if result.is_some() {
@@ -252,13 +277,11 @@ impl Action {
             }
 
             Action::Error { code } => {
-                let message = MessageBuilder
-                    ::new(code)
+                let message = MessageBuilder::new(code)
                     .prefix(server_host, None, Some(&user_host))
                     .build();
                 send(message);
             }
-            Action::JoinInform { channel } => {}
         }
     }
 }

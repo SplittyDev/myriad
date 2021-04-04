@@ -1,11 +1,11 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub enum CaseMap {
     Ascii,
     Rfc1459,
     Rfc1459Strict,
-    Rfc7613
+    Rfc7613,
 }
 
 impl ToString for CaseMap {
@@ -14,8 +14,9 @@ impl ToString for CaseMap {
             Self::Ascii => "ascii",
             Self::Rfc1459 => "rfc1459",
             Self::Rfc1459Strict => "rfc1459-strict",
-            Self::Rfc7613 => "rfc7613"
-        }.to_string()
+            Self::Rfc7613 => "rfc7613",
+        }
+        .to_string()
     }
 }
 
@@ -33,12 +34,15 @@ pub struct ServerConfig {
 
 // Default values for deserialization
 impl ServerConfig {
-    fn default_feat_awaylen() -> u32 { 255 }
-    fn default_feat_casemap() -> CaseMap { CaseMap::Ascii }
+    fn default_feat_awaylen() -> u32 {
+        255
+    }
+    fn default_feat_casemap() -> CaseMap {
+        CaseMap::Ascii
+    }
 }
 
 impl ServerConfig {
-    
     /// Get the (host, port) pair.
     pub fn addr(&self) -> (&str, u16) {
         (&self.host, self.port)

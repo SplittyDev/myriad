@@ -43,10 +43,24 @@ pub enum Action {
     JoinInform {
         channel: String,
     },
+    PrivateMessage {
+        message: String,
+        users: Vec<String>,
+        channels: Vec<String>,
+    },
+    PrivateMessageUser {
+        message: String,
+        from_nickname: String,
+    },
+    PrivateMessageChannel {
+        message: String,
+        channel: String,
+        from_nickname: String,
+    },
 }
 
 impl Action {
-    pub fn dispatch_multi_by_user_ref(&self, root_query: &mut ServerQuery, users: &[&User]) {
+    pub fn _dispatch_multi_by_user_ref(&self, root_query: &mut ServerQuery, users: &[&User]) {
         for user in users {
             let mut query = ServerQuery::new(root_query.server_mut(), user.client_id);
             let mut writer = {
@@ -62,20 +76,24 @@ impl Action {
         }
     }
 
+    pub fn dispatch_for_client_id(&self, root_query: &mut ServerQuery, client: u64) {
+        let mut query = ServerQuery::new(root_query.server_mut(), client);
+        let mut writer = {
+            let writer = query
+                .user()
+                .stream
+                .try_clone()
+                .ok()
+                .map(|stream| BufWriter::new(stream));
+            guard!(let Some(mut writer) = writer else { return });
+            writer
+        };
+        self.dispatch(&mut query, &mut writer);
+    }
+
     pub fn dispatch_multi_by_client_id(&self, root_query: &mut ServerQuery, clients: &[u64]) {
         for client in clients {
-            let mut query = ServerQuery::new(root_query.server_mut(), *client);
-            let mut writer = {
-                let writer = query
-                    .user()
-                    .stream
-                    .try_clone()
-                    .ok()
-                    .map(|stream| BufWriter::new(stream));
-                guard!(let Some(mut writer) = writer else { return });
-                writer
-            };
-            self.dispatch(&mut query, &mut writer);
+            self.dispatch_for_client_id(root_query, *client);
         }
     }
 
@@ -244,6 +262,84 @@ impl Action {
                     .param(channel)
                     .build();
                 send(join_command);
+            }
+
+            Action::PrivateMessage {
+                message,
+                users,
+                channels,
+            } => {
+                let nickname = query.user().nickname.clone().unwrap();
+
+                // Collect target user client IDs
+                let target_clients = users
+                    .iter()
+                    .flat_map(|nickname| {
+                        if let Some(user) = query.user_find_by_nickname(nickname) {
+                            Some(user.client_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect_vec();
+
+                // Dispatch private message to target clients
+                for target_client in target_clients {
+                    Action::PrivateMessageUser {
+                        message: message.clone(),
+                        from_nickname: nickname.clone(),
+                    }
+                    .dispatch_for_client_id(query, target_client);
+                }
+
+                // Iterate over target channels
+                for channel_name in channels {
+                    // Collect clients in channel (except sender client)
+                    let clients = query.channel_find(&channel_name).map(|channel| {
+                        channel
+                            .clients()
+                            .iter()
+                            .filter(|target_client_id| client_id != **target_client_id)
+                            .map(|client_id| *client_id)
+                            .collect_vec()
+                    });
+
+                    // Dispatch private message to all users of channel
+                    if let Some(clients) = clients {
+                        Action::PrivateMessageChannel {
+                            message: message.clone(),
+                            channel: channel_name.clone(),
+                            from_nickname: nickname.clone(),
+                        }
+                        .dispatch_multi_by_client_id(query, &clients[..]);
+                    }
+                }
+            }
+
+            Action::PrivateMessageUser {
+                message,
+                from_nickname,
+            } => {
+                let nickname = query.user().nickname.clone().unwrap();
+                let privmsg_command = MessageBuilder::new("PRIVMSG")
+                    .prefix(&from_nickname, None, None)
+                    .param(&nickname)
+                    .trailing(&message)
+                    .build();
+                send(privmsg_command);
+            }
+
+            Action::PrivateMessageChannel {
+                message,
+                channel,
+                from_nickname,
+            } => {
+                let privmsg_command = MessageBuilder::new("PRIVMSG")
+                    .prefix(&from_nickname, None, None)
+                    .param(channel)
+                    .trailing(&message)
+                    .build();
+                send(privmsg_command);
             }
 
             Action::Quit { reason } => {

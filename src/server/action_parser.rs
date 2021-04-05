@@ -135,6 +135,51 @@ impl ActionParser {
                 })
             }
 
+            "PRIVMSG" => {
+                guard!(let Some(params) = message.params() else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS });
+                });
+                let mut params_iter = params.iter();
+                guard!(let Some(targets) = params_iter.next().map(|s| s.split(",").collect_vec()) else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS });
+                });
+                let message = {
+                    if let Some(message) = params_iter.next() {
+                        Some(message)
+                    } else if let Some(message) = params.trailing() {
+                        Some(message)
+                    } else {
+                        None
+                    }
+                };
+                guard!(let Some(message) = message else {
+                    return Some(Action::Error { code: ERR_NEEDMOREPARAMS });
+                });
+
+                let channel_targets = targets
+                    .iter()
+                    .filter(|target| {
+                        !target.is_empty()
+                            && vec!['#', '&']
+                                .iter()
+                                .any(|&c| c == target.chars().next().unwrap())
+                    })
+                    .map(|s| s.to_string())
+                    .collect_vec();
+
+                let user_targets = targets
+                    .iter()
+                    .filter(|target| !channel_targets.contains(&target.to_string()))
+                    .map(|s| s.to_string())
+                    .collect_vec();
+
+                Some(Action::PrivateMessage {
+                    message: message.to_string(),
+                    channels: channel_targets,
+                    users: user_targets,
+                })
+            }
+
             "QUIT" => {
                 let reason = {
                     if let Some(params) = message.params() {

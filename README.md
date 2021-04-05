@@ -15,7 +15,7 @@ Myriad is __not__ ready for production use. Many basic features are missing and 
 
 ### master
 ```
-Implemented: JOIN
+Implemented: JOIN, PRIVMSG
 
 Bugfixes:
 - Remove client from client list on QUIT

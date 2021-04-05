@@ -61,6 +61,16 @@ impl<'a> ServerQuery<'a> {
             .find(|user| user.client_id == client_id)
     }
 
+    pub fn user_find_by_nickname(&self, nickname: &str) -> Option<&User> {
+        self.server.users.iter().find(|user| {
+            if let Some(user_nickname) = &user.nickname {
+                user_nickname == nickname
+            } else {
+                false
+            }
+        })
+    }
+
     pub fn user_count(&self) -> usize {
         self.server.users.len()
     }
